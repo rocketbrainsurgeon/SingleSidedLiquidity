@@ -1,0 +1,23 @@
+# Ignore Hardhat's artifacts and cache
+artifacts/
+cache/
+
+# Ignore Hardhat's scripts output
+scripts/output/
+
+# Ignore Hardhat's coverage report
+coverage/
+
+# Ignore Hardhat's network files
+network/
+
+node_modules/
+typechain/
+
+# Ignore Hardhat's local developer environment
+.env
+
+# Ignore compiled files
+*.json
+*.js
+*.log
