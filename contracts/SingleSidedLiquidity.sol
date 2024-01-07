@@ -4,6 +4,7 @@ pragma abicoder v2;
 
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Pool.sol";
 import "@uniswap/v3-core/contracts/interfaces/IUniswapV3Factory.sol";
+import "@uniswap/v3-periphery/contracts/interfaces/IERC20Metadata.sol";
 import "@uniswap/v3-periphery/contracts/base/LiquidityManagement.sol";
 import "@uniswap/v3-periphery/contracts/libraries/PositionKey.sol";
 
@@ -50,7 +51,7 @@ contract SingleSidedLiquidity is LiquidityManagement {
         );
 
         rangeSize = _ticks * pool.tickSpacing();
-        setRange(_amount1 > _amount0);
+        setRange(oneIsMore(_amount0, _amount1));
 
         addLiquidity(
             AddLiquidityParams({
@@ -120,10 +121,11 @@ contract SingleSidedLiquidity is LiquidityManagement {
         // fees gained from the inactive token are sent to the user
         (uint256 amount0, uint256 amount1) = burn();
 
-        setRange(amount1 > amount0);
+        bool useOne = oneIsMore(amount0, amount1);
+        setRange(useOne);
 
-        uint256 a0 = amount0 > amount1 ? amount0 : 0;
-        uint256 a1 = amount1 > amount0 ? amount1 : 0;
+        uint256 a0 = useOne ? 0 : amount0;
+        uint256 a1 = useOne ? amount1 : 0;
 
         addLiquidity(
             AddLiquidityParams({
@@ -146,7 +148,7 @@ contract SingleSidedLiquidity is LiquidityManagement {
         return currentTick >= lower && currentTick <= upper;
     }
 
-    function setRange(bool oneIsMore) internal {
+    function setRange(bool useOne) internal {
         (, int24 tick, , , , , ) = pool.slot0();
         int24 tickSpacing = pool.tickSpacing();
 
@@ -154,7 +156,7 @@ contract SingleSidedLiquidity is LiquidityManagement {
             ((tick + tickSpacing) / tickSpacing) * tickSpacing,
             ((tick + tickSpacing + rangeSize) / tickSpacing) * tickSpacing
         );
-        if (oneIsMore) {
+        if (useOne) {
             (lower, upper) = (
                 ((tick - tickSpacing - rangeSize) / tickSpacing) * tickSpacing,
                 ((tick - tickSpacing) / tickSpacing) * tickSpacing
@@ -162,5 +164,30 @@ contract SingleSidedLiquidity is LiquidityManagement {
         }
 
         lastRerange = block.timestamp;
+    }
+
+    function oneIsMore(
+        uint256 amount0,
+        uint256 amount1
+    ) public view returns (bool) {
+        IERC20Metadata zero = IERC20Metadata(token0);
+        IERC20Metadata one = IERC20Metadata(token1);
+
+        uint8 decimals0 = zero.decimals();
+        uint8 decimals1 = one.decimals();
+        bool oneIsBigDecimals = decimals1 > decimals0;
+
+        uint8 diff = oneIsBigDecimals
+            ? decimals1 - decimals0
+            : decimals0 - decimals1;
+
+        uint256 amount0Adjusted = oneIsBigDecimals
+            ? amount0 * (10 ** diff)
+            : amount0;
+        uint256 amount1Adjusted = oneIsBigDecimals
+            ? amount1
+            : amount1 * (10 ** diff);
+
+        return amount1Adjusted > amount0Adjusted;
     }
 }
