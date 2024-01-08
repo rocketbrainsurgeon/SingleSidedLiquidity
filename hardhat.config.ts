@@ -20,6 +20,14 @@ const config: HardhatUserConfig = {
           : [],
     },
   },
+  etherscan: {
+    apiKey: { 
+      polygon: process.env.POLYGON_API_KEY || "",
+    }
+  },
+  sourcify: {
+    enabled: true,
+  },
 }
 
 export default config
